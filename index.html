@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juego de montaje de placa base</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  font-family:Arial,sans-serif;
+  background:#f1f5f9;
+  color:#1e293b;
+  margin:0;
+  text-align:center;
+}
+
+header{padding:16px}
+h1{font-size:1.6rem;margin:5px}
+p{line-height:1.5}
+
+.controles{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:10px;
+}
+
+button{
+  font-size:15px;
+  padding:10px 14px;
+  border:2px solid #cbd5e1;
+  border-radius:9px;
+  background:white;
+  cursor:pointer;
+}
+
+button.activo{
+  background:#2563eb;
+  color:white;
+  border-color:#2563eb;
+}
+
+button:hover{border-color:#2563eb}
+
+.estadisticas{
+  display:flex;
+  justify-content:center;
+  gap:18px;
+  flex-wrap:wrap;
+  margin:12px;
+  font-weight:bold;
+}
+
+#tablero{
+  position:relative;
+  width:min(610px,98vw);
+  margin:auto;
+  line-height:0;
+  background:white;
+  border:2px solid #cbd5e1;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+#placa{
+  display:block;
+  width:100%;
+  height:auto;
+}
+
+.zona{
+  position:absolute;
+  border:2px dashed #64748b;
+  border-radius:6px;
+  background:#2563eb12;
+  cursor:pointer;
+  line-height:normal;
+  touch-action:manipulation;
+}
+
+.zona:hover,.zona.pista{
+  background:#f59e0b66;
+  border-color:#f59e0b;
+}
+
+.zona.ok{
+  background:#22c55e55;
+  border:3px solid #16a34a;
+}
+
+.zona span{
+  display:none;
+  color:white;
+  background:#15803d;
+  padding:4px;
+  border-radius:4px;
+  font-size:10px;
+  font-weight:bold;
+}
+
+#tarjetas{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:16px;
+}
+
+.tarjeta{
+  font-weight:bold;
+  border-left:7px solid #2563eb;
+  max-width:280px;
+  touch-action:manipulation;
+}
+
+.tarjeta.seleccionada{
+  outline:3px solid #f59e0b;
+  background:#fef3c7;
+}
+
+.tarjeta.oculta{display:none}
+
+#mensaje{
+  min-height:32px;
+  font-weight:bold;
+  padding:8px;
+}
+
+.correcto{color:#15803d}
+.error{color:#dc2626}
+
+small{
+  display:block;
+  color:#475569;
+  margin:8px;
+}
+
+#resultado{
+  display:none;
+  max-width:420px;
+  margin:16px auto;
+  padding:18px;
+  background:white;
+  border:2px solid #cbd5e1;
+  border-radius:12px;
+}
+
+#resultado h2{margin-top:0}
+
+@media(max-width:450px){
+  h1{font-size:1.3rem}
+  .estadisticas{gap:10px;font-size:14px}
+  button{padding:9px 10px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Identifica las partes de la placa base</h1>
+  <p>
+    Arrastra cada tarjeta a su lugar o selecciónala
+    y toca la zona correspondiente de la fotografía.
+  </p>
+</header>
+
+<div class="controles">
+  <button id="btnNombres" class="activo"
+    type="button" onclick="cambiarModo('nombre')">
+    Nombres
+  </button>
+
+  <button id="btnFunciones"
+    type="button" onclick="cambiarModo('funcion')">
+    Funciones
+  </button>
+
+  <button type="button" onclick="pista()">💡 Pista</button>
+  <button type="button" onclick="reiniciar()">🔄 Reiniciar</button>
+</div>
+
+<div class="controles">
+  <button id="nivel1" class="activo"
+    type="button" onclick="cambiarNivel(1)">Fácil</button>
+
+  <button id="nivel2"
+    type="button" onclick="cambiarNivel(2)">Medio</button>
+
+  <button id="nivel3"
+    type="button" onclick="cambiarNivel(3)">Completo</button>
+</div>
+
+<div class="estadisticas">
+  <span>✅ Aciertos: <b id="aciertos">0</b>/<b id="total">5</b></span>
+  <span>❌ Fallos: <b id="fallos">0</b></span>
+  <span>💡 Pistas: <b id="pistas">0</b></span>
+  <span>⏱️ <b id="tiempo">0:00</b></span>
+</div>
+
+<div id="tablero">
+
+  <!-- Guarda placabase.png junto a este archivo HTML -->
+
+  <img id="placa"
+       src="placabase.png"
+       alt="Fotografía real de una placa base Gigabyte">
+
+  <!-- Procesador -->
+  <div class="zona" data-id="cpu"
+       style="left:40%;top:25%;width:26%;height:19%">
+    <span>CPU</span>
+  </div>
+
+  <!-- Memoria RAM -->
+  <div class="zona" data-id="ram"
+       style="left:76%;top:2%;width:10%;height:64%">
+    <span>RAM</span>
+  </div>
+
+  <!-- Alimentación ATX -->
+  <div class="zona" data-id="atx"
+       style="left:90%;top:30%;width:5%;height:23%">
+    <span>ATX</span>
+  </div>
+
+  <!-- Ranuras PCIe x16 -->
+  <div class="zona" data-id="pcie16"
+       style="left:29%;top:70%;width:48%;height:4%">
+    <span>PCIe x16</span>
+  </div>
+
+  <!-- Ranuras PCIe x1 -->
+  <div class="zona" data-id="pcie1"
+       style="left:28%;top:78%;width:14%;height:4%">
+    <span>PCIe x1</span>
+  </div>
+
+  <!-- Ranuras PCI tradicionales -->
+  <div class="zona" data-id="pci"
+       style="left:25%;top:86%;width:45%;height:5%">
+    <span>PCI</span>
+  </div>
+
+  <!-- Conectores SATA - Bloque 1 -->
+  <div class="zona" data-id="sata"
+       style="left:90%;top:54%;width:4%;height:14%">
+    <span>SATA</span>
+  </div>
+  <!-- Conectores SATA - Bloque 2 -->
+  <div class="zona" data-id="sata"
+       style="left:76%;top:94%;width:18%;height:3%">
+    <span>SATA</span>
+  </div>
+
+  <!-- Chipset -->
+  <div class="zona" data-id="chipset"
+       style="left:68%;top:74%;width:15%;height:12%">
+    <span>Chipset</span>
+  </div>
+
+  <!-- Audio Frontal -->
+  <div class="zona" data-id="audiofrontal"
+       style="left:18%;top:94%;width:7%;height:2%">
+    <span>Audio_Frontal</span>
+  </div>
+
+  <!-- Chip BIOS -->
+  <div class="zona" data-id="bios"
+       style="left:44%;top:74%;width:6%;height:12%">
+    <span>BIOS</span>
+  </div>
+
+  <!-- Conector de alimentación de CPU -->
+  <div class="zona" data-id="cpupwr"
+       style="left:14%;top:12%;width:7%;height:8%">
+    <span>CPU_PWR</span>
+  </div>
+
+  <!-- Pila CMOS -->
+  <div class="zona" data-id="pila"
+       style="left:31%;top:60%;width:10%;height:8%;border-radius:50%">
+    <span>CMOS</span>
+  </div>
+
+  <!-- CPU FAN -->
+  <div class="zona" data-id="cpufan"
+       style="left:22%;top:47%;width:4%;height:5%">
+    <span>CPU_FAN</span>
+  </div>
+
+  <!-- SYS FAN -->
+  <div class="zona" data-id="sysfan"
+       style="left:27%;top:94%;width:7%;height:3%">
+    <span>SYS_FAN</span>
+  </div>
+
+  <!-- Front Panel -->
+  <div class="zona" data-id="frontpanel"
+       style="left:59%;top:94%;width:15%;height:3%">
+    <span>Front Panel</span>
+  </div>
+
+  <!-- Conectores internos USB -->
+  <div class="zona" data-id="usbint"
+       style="left:41%;top:94%;width:15%;height:3%">
+    <span>USB Int.</span>
+  </div>
+
+  <!-- Conectores panel trasero -->
+  <div class="zona" data-id="paneltrasero"
+       style="left:3%;top:2%;width:11%;height:67%">
+    <span>Panel Trasero</span>
+  </div>
+
+  <!-- VRM (Módulo de Regulación de Voltaje) - Bloque horizontal superior -->
+  <div class="zona" data-id="vrm"
+       style="left:31%;top:5%;width:24%;height:6%">
+    <span>VRM</span>
+  </div>
+  <!-- VRM - Bloque vertical izquierdo -->
+  <div class="zona" data-id="vrm"
+       style="left:20%;top:12%;width:8%;height:28%">
+    <span>VRM</span>
+  </div>
+
+</div>
+
+<div id="mensaje" aria-live="polite">
+  Selecciona una tarjeta para empezar.
+</div>
+
+<div id="tarjetas"></div>
+
+<div id="resultado">
+  <h2 id="tituloResultado">🏆 ¡Actividad completada!</h2>
+  <p id="resumen"></p>
+  <button type="button" onclick="reiniciar()">Jugar de nuevo</button>
+</div>
+
+<small>Actividad didáctica de montaje de equipos informáticos</small>
+
+<script>
+"use strict";
+
+/* COMPONENTES Y FUNCIONES */
+
+const piezas = [
+  /* NIVEL 1: FÁCIL */
+  {
+    id:"cpu",
+    nombre:"Procesador (CPU)",
+    funcion:"Procesa la información y lleva a cabo las instrucciones del sistema.",
+    nivel:1
+  },
+  {
+    id:"ram",
+    nombre:"Zócalos de memoria RAM",
+    funcion:"Alojan los módulos de memoria de trabajo temporal del ordenador.",
+    nivel:1
+  },
+  {
+    id:"atx",
+    nombre:"Conector principal ATX de 24 pines",
+    funcion:"Suministra la energía principal a toda la placa base.",
+    nivel:1
+  },
+  {
+    id:"pcie16",
+    nombre:"Ranuras PCIe x16",
+    funcion:"Diseñadas fundamentalmente para tarjetas gráficas de alto rendimiento.",
+    nivel:1
+  },
+  {
+    id:"sata",
+    nombre:"Conectores SATA",
+    funcion:"Conectan los dispositivos de almacenamiento mediante cables SATA.",
+    nivel:1
+  },
+  {
+    id:"paneltrasero",
+    nombre:"Conectores del panel trasero",
+    funcion:"Interfaces externas de E/S (como USB, red, audio y vídeo) para conectar periféricos.",
+    nivel:1
+  },
+
+  /* NIVEL 2: MEDIO */
+  {
+    id:"pcie1",
+    nombre:"Ranuras PCIe x1",
+    funcion:"Destinadas a tarjetas de expansión compactas, tales como controladores de red o sonido.",
+    nivel:2
+  },
+  {
+    id:"pci",
+    nombre:"Ranuras PCI convencionales",
+    funcion:"Ranuras de expansión más antiguas (de 32 bits) orientadas a tarjetas clásicas.",
+    nivel:2
+  },
+  {
+    id:"chipset",
+    nombre:"Chipset",
+    funcion:"Comunica la CPU con los componentes secundarios.",
+    nivel:2
+  },
+  {
+    id:"audiofrontal",
+    nombre:"Audio Frontal",
+    funcion:"Interfaz para habilitar las conexiones de sonido en el panel delantero.",
+    nivel:2
+  },
+  {
+    id:"vrm",
+    nombre:"Módulo de Regulación de Voltaje (VRM)",
+    funcion:"Se encarga de estabilizar y adaptar la corriente eléctrica que llega al procesador.",
+    nivel:2
+  },
+  {
+    id:"bios",
+    nombre:"Chip BIOS/UEFI",
+    funcion:"Guarda el software de arranque y la configuración esencial del sistema.",
+    nivel:2
+  },
+  {
+    id:"cpupwr",
+    nombre:"Conector de alimentación de CPU",
+    funcion:"Proporciona corriente eléctrica dedicada al procesador a través de la placa.",
+    nivel:2
+  },
+
+  /* NIVEL 3: COMPLETO */
+  {
+    id:"pila",
+    nombre:"Pila CMOS",
+    funcion:"Conserva la configuración de la BIOS, la fecha y la hora cuando el equipo está apagado.",
+    nivel:3
+  },
+  {
+    id:"cpufan",
+    nombre:"Conector CPU_FAN",
+    funcion:"Alimenta y controla las revoluciones del ventilador del disipador de la CPU.",
+    nivel:3
+  },
+  {
+    id:"sysfan",
+    nombre:"Conector SYS_FAN",
+    funcion:"Proporciona corriente eléctrica a los ventiladores de la caja o chasis.",
+    nivel:3
+  },
+  {
+    id:"frontpanel",
+    nombre:"Conector Front Panel",
+    funcion:"Agrupa las conexiones de los LEDs indicadores y los botones de encendido y reinicio de la torre.",
+    nivel:3
+  },
+  {
+    id:"usbint",
+    nombre:"Conectores internos USB",
+    funcion:"Habilitan las conexiones USB ubicadas en la parte delantera o superior de la caja.",
+    nivel:3
+  }
+];
+
+/* ESTADO DEL JUEGO */
+
+let modo = "nombre";
+let dificultad = 1;
+let seleccion = null;
+let disponibles = [];
+
+let aciertos = 0;
+let fallos = 0;
+let numPistas = 0;
+
+let inicio = null;
+let reloj = null;
+let terminado = false;
+
+const $ = id => document.getElementById(id);
+
+/* UTILIDADES */
+
+function mezclar(lista) {
+  const resultado = [...lista];
+
+  for (let i = resultado.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [resultado[i], resultado[j]] = [resultado[j], resultado[i]];
+  }
+
+  return resultado;
+}
+
+function mostrarMensaje(texto, clase = "") {
+  $("mensaje").textContent = texto;
+  $("mensaje").className = clase;
+}
+
+function actualizarBotones() {
+  $("btnNombres").classList.toggle("activo", modo === "nombre");
+  $("btnFunciones").classList.toggle("activo", modo === "funcion");
+
+  for (let i = 1; i <= 3; i++) {
+    $("nivel" + i).classList.toggle("activo", dificultad === i);
+  }
+}
+
+/* CAMBIAR MODO Y NIVEL */
+
+function cambiarModo(valor) {
+  modo = valor;
+  actualizarBotones();
+  reiniciar();
+}
+
+function cambiarNivel(valor) {
+  dificultad = valor;
+  actualizarBotones();
+  reiniciar();
+}
+
+/* INICIAR O REINICIAR */
+
+function reiniciar() {
+  clearInterval(reloj);
+
+  reloj = null;
+  inicio = null;
+  seleccion = null;
+  terminado = false;
+
+  aciertos = 0;
+  fallos = 0;
+  numPistas = 0;
+
+  disponibles = piezas.filter(p => p.nivel <= dificultad);
+
+  $("aciertos").textContent = "0";
+  $("fallos").textContent = "0";
+  $("pistas").textContent = "0";
+  $("total").textContent = disponibles.length;
+  $("tiempo").textContent = "0:00";
+
+  $("resultado").style.display = "none";
+
+  mostrarMensaje(
+    "Selecciona una tarjeta y toca su ubicación en la fotografía."
+  );
+
+  document.querySelectorAll(".zona").forEach(zona => {
+    zona.classList.remove("ok", "pista");
+    zona.style.display = disponibles.some(
+      pieza => pieza.id === zona.dataset.id
+    ) ? "block" : "none";
+
+    const etiqueta = zona.querySelector("span");
+    etiqueta.textContent = "";
+    etiqueta.style.display = "none";
+  });
+
+  $("tarjetas").innerHTML = "";
+
+  mezclar(disponibles).forEach(pieza => {
+    const tarjeta = document.createElement("button");
+
+    tarjeta.type = "button";
+    tarjeta.className = "tarjeta";
+    tarjeta.draggable = true;
+    tarjeta.dataset.id = pieza.id;
+
+    tarjeta.textContent =
+      modo === "nombre" ? pieza.nombre : pieza.funcion;
+
+    tarjeta.addEventListener("click", () => {
+      if (terminado) return;
+      seleccionarTarjeta(tarjeta);
+    });
+
+    tarjeta.addEventListener("dragstart", evento => {
+      if (terminado) {
+        evento.preventDefault();
+        return;
+      }
+
+      seleccion = tarjeta;
+      evento.dataTransfer.setData("text/plain", pieza.id);
+      evento.dataTransfer.effectAllowed = "move";
+    });
+
+    $("tarjetas").appendChild(tarjeta);
+  });
+
+  configurarZonas();
+  actualizarBotones();
+}
+
+/* SELECCIONAR UNA TARJETA */
+
+function seleccionarTarjeta(tarjeta) {
+  if (terminado || tarjeta.classList.contains("oculta")) return;
+
+  document.querySelectorAll(".tarjeta").forEach(t => {
+    t.classList.remove("seleccionada");
+  });
+
+  if (seleccion === tarjeta) {
+    seleccion = null;
+    mostrarMensaje("Selección cancelada.");
+    return;
+  }
+
+  seleccion = tarjeta;
+  tarjeta.classList.add("seleccionada");
+
+  mostrarMensaje(
+    "Ahora toca la zona de la placa donde corresponde."
+  );
+}
+
+/* CONFIGURAR LAS ZONAS INTERACTIVAS */
+
+function configurarZonas() {
+  document.querySelectorAll(".zona").forEach(zona => {
+
+    // Ilumina conjuntamente todas las zonas que comparten el mismo data-id al pasar el ratón
+    zona.addEventListener("mouseenter", () => {
+      if (terminado) return;
+      const id = zona.dataset.id;
+      document.querySelectorAll(`.zona[data-id="${id}"]`).forEach(z => {
+        if (!z.classList.contains("ok")) {
+          z.style.background = "#f59e0b66";
+          z.style.borderColor = "#f59e0b";
+        }
+      });
+    });
+
+    zona.addEventListener("mouseleave", () => {
+      if (terminado) return;
+      const id = zona.dataset.id;
+      document.querySelectorAll(`.zona[data-id="${id}"]`).forEach(z => {
+        if (!z.classList.contains("ok")) {
+          z.style.background = "";
+          z.style.borderColor = "";
+        }
+      });
+    });
+
+    zona.ondragover = evento => {
+      if (!terminado) evento.preventDefault();
+    };
+
+    zona.ondrop = evento => {
+      evento.preventDefault();
+      if (terminado) return;
+
+      const id = evento.dataTransfer.getData("text/plain");
+
+      const tarjeta = [...document.querySelectorAll(".tarjeta")]
+        .find(t => t.dataset.id === id);
+
+      if (tarjeta) comprobar(tarjeta, zona);
+    };
+
+    zona.onclick = () => {
+      if (terminado) return;
+
+      if (seleccion) {
+        comprobar(seleccion, zona);
+      } else {
+        mostrarMensaje("Primero selecciona una tarjeta.", "error");
+      }
+    };
+  });
+}
+
+/* CRONÓMETRO */
+
+function arrancarReloj() {
+  if (inicio !== null) return;
+
+  inicio = Date.now();
+
+  reloj = setInterval(() => {
+    actualizarTiempo();
+  }, 500);
+}
+
+function actualizarTiempo() {
+  const segundos = inicio === null
+    ? 0
+    : Math.floor((Date.now() - inicio) / 1000);
+
+  const minutos = Math.floor(segundos / 60);
+  const resto = segundos % 60;
+
+  $("tiempo").textContent =
+    minutos + ":" + String(resto).padStart(2, "0");
+}
+
+/* COMPROBAR RESPUESTAS */
+
+function comprobar(tarjeta, zona) {
+  if (terminado) return;
+  if (zona.classList.contains("ok")) return;
+  if (tarjeta.classList.contains("oculta")) return;
+
+  arrancarReloj();
+
+  if (tarjeta.dataset.id === zona.dataset.id) {
+    const pieza = disponibles.find(
+      p => p.id === zona.dataset.id
+    );
+
+    // Marca todas las zonas que compartan este data-id (permite múltiples bloques como PCI, SATA y VRM)
+    document.querySelectorAll(`.zona[data-id="${zona.dataset.id}"]`).forEach(z => {
+      z.classList.add("ok");
+      z.style.background = ""; // Limpia estilos temporales de hover
+      z.style.borderColor = "";
+      const etiqueta = z.querySelector("span");
+      if (etiqueta) {
+        etiqueta.textContent = pieza.nombre;
+        etiqueta.style.display = "block";
+      }
+      z.setAttribute("aria-label", pieza.nombre + ": correcto");
+    });
+
+    tarjeta.classList.add("oculta");
+    tarjeta.classList.remove("seleccionada");
+
+    aciertos++;
+    $("aciertos").textContent = aciertos;
+
+    seleccion = null;
+
+    mostrarMensaje("¡Correcto! " + pieza.nombre, "correcto");
+
+    if (aciertos === disponibles.length) {
+      finalizar();
+    }
+
+  } else {
+    fallos++;
+    $("fallos").textContent = fallos;
+
+    mostrarMensaje(
+      "Esa no es la ubicación correcta. ¡Prueba otra vez!",
+      "error"
+    );
+  }
+}
+
+/* PISTAS */
+
+function pista() {
+  if (terminado) return;
+
+  if (!seleccion) {
+    mostrarMensaje(
+      "Selecciona primero una tarjeta para recibir una pista.",
+      "error"
+    );
+    return;
+  }
+
+  const zonas = document.querySelectorAll(
+    '.zona[data-id="' + seleccion.dataset.id + '"]'
+  );
+
+  if (zonas.length === 0) return;
+
+  document.querySelectorAll(".zona").forEach(z => {
+    z.classList.remove("pista");
+  });
+
+  zonas.forEach(z => z.classList.add("pista"));
+
+  numPistas++;
+  $("pistas").textContent = numPistas;
+
+  mostrarMensaje("💡 Las zonas resaltadas son la respuesta.");
+
+  setTimeout(() => {
+    zonas.forEach(z => z.classList.remove("pista"));
+  }, 2500);
+}
+
+/* FINAL DE LA ACTIVIDAD */
+
+function finalizar() {
+  terminado = true;
+  clearInterval(reloj);
+
+  actualizarTiempo();
+
+  const tiempoFinal = $("tiempo").textContent;
+
+  const penalizaciones = fallos + numPistas;
+
+  const puntuacion = Math.max(
+    0,
+    Math.round(10 * aciertos / (aciertos + penalizaciones))
+  );
+
+  let titulo = "🏆 ¡Actividad completada!";
+
+  if (fallos === 0 && numPistas === 0) {
+    titulo = "🌟 ¡Perfecto! Sin fallos ni pistas.";
+  }
+
+  $("tituloResultado").textContent = titulo;
+
+  $("resumen").innerHTML =
+    "✅ Aciertos: <b>" + aciertos + "/" + disponibles.length + "</b><br>" +
+    "❌ Fallos: <b>" + fallos + "</b><br>" +
+    "💡 Pistas utilizadas: <b>" + numPistas + "</b><br>" +
+    "⏱️ Tiempo: <b>" + tiempoFinal + "</b><br>" +
+    "🎯 Puntuación orientativa: <b>" + puntuacion + "/10</b><br>" +
+    "📚 Modo: <b>" +
+    (modo === "nombre" ? "Nombres" : "Funciones") +
+    "</b><br>" +
+    "Nivel: <b>" +
+    ["", "Fácil", "Medio", "Completo"][dificultad] +
+    "</b>";
+
+  $("resultado").style.display = "block";
+
+  mostrarMensaje(
+    "¡Enhorabuena! Has completado todos los componentes.",
+    "correcto"
+  );
+
+  $("resultado").scrollIntoView({
+    behavior: "smooth",
+    block: "nearest"
+  });
+}
+
+/* COMPROBAR CARGA DE LA FOTOGRAFÍA */
+
+$("placa").addEventListener("error", () => {
+  mostrarMensaje(
+    "No se encuentra placabase.png. Comprueba que esté en la misma carpeta que el HTML.",
+    "error"
+  );
+});
+
+/* INICIO */
+
+reiniciar();
+</script>
+
+</body>
+</html>
